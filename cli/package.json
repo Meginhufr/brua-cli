@@ -1,0 +1,39 @@
+{
+  "name": "@meginhufr/brua-cli",
+  "version": "0.1.0",
+  "description": "Brua from the command line and CI: push images and animations into change sets, and read what the current release serves.",
+  "author": "Meginhufr AS <hello@brua.dev> (https://brua.dev)",
+  "license": "MIT",
+  "homepage": "https://brua.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Meginhufr/brua-cli.git",
+    "directory": "cli"
+  },
+  "type": "module",
+  "bin": {
+    "brua": "./src/brua.ts"
+  },
+  "files": [
+    "src",
+    "openapi.json",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "check": "tsc -p .",
+    "test": "tsc -p . && node --test test/",
+    "generate": "curl -sf ${BRUA_API_URL:-http://localhost:7800}/swagger/v1/swagger.json -o openapi.json && openapi-typescript openapi.json -o src/openapi.d.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "openapi-typescript": "7.9.1",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,3459 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "Brua API",
+    "description": "Brua serves images and animations to apps and web pages. Your systems use this API to create assets and upload their\nsources, to put versions in change sets that people review and merge, and, when a frozen snapshot is wanted, to read\nwhat the current release serves. Apps and pages read released assets straight from the edge by id (`/assets/{org}/{id}.json`)\nand need neither a key nor this API.\n\n**Authentication.** Send a project's API key as `X-Api-Key`. An admin creates keys in the back office's settings or with\n`POST /v1/projects/{project}/api-keys`; a key has the scopes `delivery:read` (reading assets), `assets:write` (creating\nassets, uploading, change sets) or `admin` (keys and settings). Merging a change set into prod is done by a person.\n\n**Errors** have one shape on every endpoint, `{ \"error\": \"<code>\", \"id\": \"<what it is about>\" }`, with `errors` per\nfield on `validation_failed`. Fields that are null are left out of responses, and new fields may appear at any time.",
+    "version": "v1"
+  },
+  "paths": {
+    "/v1/projects/{project}/api-keys": {
+      "post": {
+        "tags": [
+          "API keys"
+        ],
+        "summary": "Creates a key for a system. The full key is in this response only (SPEC.md 13.2).",
+        "operationId": "ApiKeys.Create",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedApiKeyDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is invalid: `validation_failed`, with the messages per field in `errors`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "API keys"
+        ],
+        "summary": "The project's keys with when each was last used; secrets are never shown again.",
+        "operationId": "ApiKeys.List",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ApiKeyDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/api-keys/{id}": {
+      "delete": {
+        "tags": [
+          "API keys"
+        ],
+        "summary": "Revokes a key; requests with it fail from the next one.",
+        "operationId": "ApiKeys.Revoke",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The key's id.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/assets": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Every asset in the project, newest first, with thumbnails of its newest processed version.",
+        "operationId": "Assets.List",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AssetSummaryDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Creates an asset with a first draft version.",
+        "operationId": "Assets.Create",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAssetRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAssetRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAssetRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetVersionDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/assets/{id}/versions": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "The asset's versions, newest first, with alt text, variant types and thumbnails.",
+        "operationId": "Assets.Versions",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The asset's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetDetailDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Starts the next draft version of an existing asset.",
+        "operationId": "Assets.CreateVersion",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The asset's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVersionRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVersionRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVersionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetVersionDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is invalid: `validation_failed`, with the messages per field in `errors`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/assets/{id}": {
+      "delete": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Deletes an asset that isn't in prod: its versions, files and entries in every release and change set go, so no rollback brings it back, and a merged change set that held nothing else goes with it (SPEC.md 10).",
+        "description": "`asset_live` while it is in prod: take it out in a change set first. `asset_in_review` while a submitted or approved change set holds it, with that change set's name as the id: send it back first.",
+        "operationId": "Assets.Delete",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The asset's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "The delivery API: the asset's version in the current release as an AssetResponse, a snapshot to embed (SPEC.md 5.2).",
+        "description": "`not_found` when there is no such asset, `not_released` when none of its versions is live. Apps and pages that hold the id read the same object from the edge instead, at `/assets/{org}/{id}.json`, with no key.",
+        "operationId": "Assets.Get",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project, or one that reads the asset's library.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The asset's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "description": "The languages wanted, in order; the alt text and language-specific files follow the first one the project has (SPEC.md 5.5).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Asset-Change-Set",
+            "in": "header",
+            "description": "An open change set's id: the response is the current release with it applied, for previews (SPEC.md 21.3).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "Asset-Release": {
+                "description": "The release that answered, such as 12, or shared@3 for a library's asset.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Language": {
+                "description": "The language the alt text and files are in.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "The request headers the response depends on; cache by them.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/assets/{id}/versions/{version}": {
+      "delete": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Deletes a version that isn't in prod: its files and entries in every release and change set go, and its number is never given out again (SPEC.md 10).",
+        "description": "`version_live` while it is in prod. `version_in_review` while a submitted or approved change set holds it, with that change set's name as the id. `only_version` for an asset's last version: delete the asset instead.",
+        "operationId": "Assets.DeleteVersion",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The asset's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "description": "The version number, from 1.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "The version's slots: which source files its preset needs, and which are uploaded (SPEC.md 9.1). Poll it after completing an upload until the status is \"Ready\" or \"Failed\".",
+        "operationId": "Assets.GetVersion",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The asset's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "description": "The version number, from 1.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetVersionDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/assets/{id}/versions/{version}/slots/{slot}/upload-url": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Returns a presigned URL to PUT one slot's source file to.",
+        "description": "Slots are named like `dark.still.source` or `nb.light.still.source` (SPEC.md 9.1). The slot must be one the preset has (`slot_not_in_preset`) and the version still a draft (`version_not_draft`). PUT the bytes to the URL with the file's Content-Type, then complete the slot.",
+        "operationId": "Assets.RequestSlotUpload",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The asset's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "description": "The version number, from 1.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "slot",
+            "in": "path",
+            "description": "The slot, such as any.still.source, dark.still.source or nb.light.still.source (SPEC.md 9.1).",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceUploadDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/assets/{id}/versions/{version}/slots/{slot}/complete": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Confirms a slot's file is uploaded. Processing starts when every required slot is.",
+        "description": "`upload_not_requested` when no upload URL was asked for, `source_missing` when nothing was PUT to it.",
+        "operationId": "Assets.CompleteSlotUpload",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The asset's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "description": "The version number, from 1.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "slot",
+            "in": "path",
+            "description": "The slot, such as any.still.source, dark.still.source or nb.light.still.source (SPEC.md 9.1).",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetVersionDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/assets/{id}/versions/{version}/source/upload-url": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Shorthand for the single slot of a flexible asset, any.still.source.",
+        "operationId": "Assets.RequestSourceUpload",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The asset's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "description": "The version number, from 1.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceUploadDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/assets/{id}/versions/{version}/source/complete": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Shorthand for completing the single slot of a flexible asset.",
+        "operationId": "Assets.CompleteSourceUpload",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The asset's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "description": "The version number, from 1.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetVersionDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/assets/{id}/versions/{version}/submit": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Adds a processed version to a change set, or to a new one with just this change (SPEC.md 21.1).",
+        "description": "`version_not_ready` until processing has finished.",
+        "operationId": "Assets.SubmitVersion",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The asset's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "description": "The version number, from 1.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitVersionRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitVersionRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitVersionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is invalid: `validation_failed`, with the messages per field in `errors`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/change-sets": {
+      "get": {
+        "tags": [
+          "Change sets"
+        ],
+        "summary": "The project's change sets, newest first, merged ones included.",
+        "operationId": "ChangeSets.List",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChangeSetDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Change sets"
+        ],
+        "summary": "Opens an empty change set to add changes to.",
+        "operationId": "ChangeSets.Create",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChangeSetRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChangeSetRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChangeSetRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is invalid: `validation_failed`, with the messages per field in `errors`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/change-sets/{id}": {
+      "get": {
+        "tags": [
+          "Change sets"
+        ],
+        "summary": "The change set with its diff against prod, including conflicts.",
+        "operationId": "ChangeSets.Get",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The change set's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Change sets"
+        ],
+        "summary": "Deletes a change set that hasn't merged. The versions in it stay with their assets.",
+        "description": "`change_set_merged` once it has merged: a merged change set is part of the release history.",
+        "operationId": "ChangeSets.Delete",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The change set's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/change-sets/{id}/changes": {
+      "post": {
+        "tags": [
+          "Change sets"
+        ],
+        "summary": "Points an asset at a version, or takes it out of the release when version is null.",
+        "description": "Only while the change set is open (`change_set_not_open`) and the version is processed (`version_not_ready`).",
+        "operationId": "ChangeSets.AddChange",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The change set's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddChangeRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddChangeRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddChangeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is invalid: `validation_failed`, with the messages per field in `errors`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/change-sets/{id}/submit": {
+      "post": {
+        "tags": [
+          "Change sets"
+        ],
+        "summary": "Sends the change set for review.",
+        "description": "`change_set_empty` when it has no changes.",
+        "operationId": "ChangeSets.Submit",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The change set's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/change-sets/{id}/approve": {
+      "post": {
+        "tags": [
+          "Change sets"
+        ],
+        "summary": "Approves a submitted change set, by a person other than its author.",
+        "description": "`own_change_set` when the author tries, unless the project's review policy allows self-approval.",
+        "operationId": "ChangeSets.Approve",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The change set's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/change-sets/{id}/merge": {
+      "post": {
+        "tags": [
+          "Change sets"
+        ],
+        "summary": "Merges an approved change set into a new release now, or at a scheduled time.",
+        "description": "Refused while an asset is in conflict (`conflicts`, with the asset ids) and when another merge got there first (`concurrent_release`). Merging is done by a person: keys cannot approve or merge.",
+        "operationId": "ChangeSets.Merge",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The change set's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is invalid: `validation_failed`, with the messages per field in `errors`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/change-sets/{id}/withdraw": {
+      "post": {
+        "tags": [
+          "Change sets"
+        ],
+        "summary": "Takes a submitted or approved change set back to open, so editors can change it again; a scheduled merge is cancelled.",
+        "description": "`change_set_merged` once it has merged, `change_set_open` when there is nothing to withdraw.",
+        "operationId": "ChangeSets.Withdraw",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The change set's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/change-sets/{id}/resolve": {
+      "post": {
+        "tags": [
+          "Change sets"
+        ],
+        "summary": "Settles a conflict for one asset: keep \"mine\" (this change set's version) or \"prod\".",
+        "operationId": "ChangeSets.Resolve",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The change set's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveConflictRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveConflictRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveConflictRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSetDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is invalid: `validation_failed`, with the messages per field in `errors`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "The project's name and languages, for clients such as the Figma plugin and pipelines that need to know which languages alt text takes.",
+        "operationId": "Projects.Get",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/releases": {
+      "get": {
+        "tags": [
+          "Releases"
+        ],
+        "summary": "Release history, newest (prod) first.",
+        "operationId": "Releases.List",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReleaseDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/projects/{project}/releases/{number}/restore": {
+      "post": {
+        "tags": [
+          "Releases"
+        ],
+        "summary": "Rolls prod back to release `number`'s contents, as a new release (SPEC.md 21.5).",
+        "operationId": "Releases.Restore",
+        "parameters": [
+          {
+            "name": "project",
+            "in": "path",
+            "description": "The project's id, as in its URLs in the back office; a project also reads its organization's libraries through its own id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "description": "The release number.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key or token, or an invalid or revoked one."
+          },
+          "403": {
+            "description": "The key lacks the scope, or the person has no role in the project that allows this; with a body when a rule refused it, such as `owners_only`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKey": [ ]
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AddChangeRequest": {
+        "required": [
+          "asset"
+        ],
+        "type": "object",
+        "properties": {
+          "asset": {
+            "type": "string",
+            "description": "The asset's id."
+          },
+          "version": {
+            "type": "integer",
+            "description": "A processed version, or null to remove the asset from the release.",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Points an asset at a version, or takes it out of the release when Brua.Shared.DTOs.AddChangeRequest.Version is null."
+      },
+      "ApiKeyDto": {
+        "required": [
+          "createdAt",
+          "id",
+          "name",
+          "prefix",
+          "scopes"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The key's id, for revoking it."
+          },
+          "name": {
+            "type": "string",
+            "description": "The system it is for."
+          },
+          "prefix": {
+            "type": "string",
+            "description": "The part of the key that identifies it, brua_{prefix}."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What it may do."
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "When it was created.",
+            "format": "date-time"
+          },
+          "lastUsedAt": {
+            "type": "string",
+            "description": "When a request last used it.",
+            "format": "date-time",
+            "nullable": true
+          },
+          "revokedAt": {
+            "type": "string",
+            "description": "When it was revoked, if it was.",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A key as listed for admins: the secret is never shown again, only its prefix (SPEC.md 13.2)."
+      },
+      "AssetDetailDto": {
+        "required": [
+          "createdAt",
+          "id",
+          "sizing",
+          "versions"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The asset's id."
+          },
+          "sizing": {
+            "type": "string",
+            "description": "\"flexible\" (a width ladder) or \"fixed\" (a designed size at @1x–@3x); every version keeps it."
+          },
+          "liveVersion": {
+            "type": "integer",
+            "description": "The version in prod; left out when none is released.",
+            "format": "int32",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "When the asset was created.",
+            "format": "date-time"
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VersionDetailDto"
+            },
+            "description": "Every version, newest first."
+          },
+          "library": {
+            "type": "string",
+            "description": "The shared library the asset lives in, when it isn't the project's own.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "An asset and all its versions, newest first, for the back office. The asset itself is an id and a\nBrua.Shared.DTOs.AssetDetailDto.Sizing; each version says which conditions have their own files. Brua.Shared.DTOs.AssetDetailDto.Library names the\nshared library the asset lives in when it isn't the project's own; it is changed there (SPEC.md 22.4)."
+      },
+      "AssetResponse": {
+        "required": [
+          "alt",
+          "height",
+          "id",
+          "url",
+          "variants",
+          "version",
+          "width"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The asset's id, unique in the organization."
+          },
+          "version": {
+            "type": "integer",
+            "description": "The version the response describes: the one in the current release, unless a version was asked for.",
+            "format": "int32"
+          },
+          "url": {
+            "type": "string",
+            "description": "The single URL: the edge negotiates format, density, color scheme and language from the request."
+          },
+          "width": {
+            "type": "integer",
+            "description": "The width in CSS pixels at 1x.",
+            "format": "int32"
+          },
+          "height": {
+            "type": "integer",
+            "description": "The height in CSS pixels at 1x.",
+            "format": "int32"
+          },
+          "alt": {
+            "type": "string",
+            "description": "The alt text in the resolved language; empty for a decorative asset."
+          },
+          "lang": {
+            "type": "string",
+            "description": "The alt text's language, when the asset has one.",
+            "nullable": true
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssetVariantDto"
+            },
+            "description": "Every file of the version for the resolved language, each with the conditions it is for."
+          }
+        },
+        "additionalProperties": false,
+        "description": "The asset contract from SPEC.md section 5: the HTML picture model as JSON.\nOptional fields are null and left out of the JSON."
+      },
+      "AssetSummaryDto": {
+        "required": [
+          "decorative",
+          "id",
+          "latestStatus",
+          "latestVersion",
+          "preset",
+          "previews"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The asset's id."
+          },
+          "preset": {
+            "type": "string",
+            "description": "\"flexible\", \"fixed\" or \"animated\"."
+          },
+          "latestVersion": {
+            "type": "integer",
+            "description": "The newest version's number.",
+            "format": "int32"
+          },
+          "latestStatus": {
+            "type": "string",
+            "description": "The newest version's status: \"Draft\", \"Processing\", \"Ready\" or \"Failed\"."
+          },
+          "liveVersion": {
+            "type": "integer",
+            "description": "The version in prod; left out when none is released.",
+            "format": "int32",
+            "nullable": true
+          },
+          "width": {
+            "type": "integer",
+            "description": "The newest processed version's width in CSS pixels.",
+            "format": "int32",
+            "nullable": true
+          },
+          "height": {
+            "type": "integer",
+            "description": "The newest processed version's height in CSS pixels.",
+            "format": "int32",
+            "nullable": true
+          },
+          "alt": {
+            "type": "string",
+            "description": "The newest version's alt text in the project's first language.",
+            "nullable": true
+          },
+          "decorative": {
+            "type": "boolean",
+            "description": "Whether the asset is decorative."
+          },
+          "previews": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreviewDto"
+            },
+            "description": "Thumbnails of the newest processed version."
+          },
+          "library": {
+            "type": "string",
+            "description": "The shared library the asset lives in, when it isn't the project's own.",
+            "nullable": true
+          },
+          "liveUrl": {
+            "type": "string",
+            "description": "The single URL of the version in prod.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "One asset in the back office's list, with its newest version and the version in prod. Brua.Shared.DTOs.AssetSummaryDto.Library names\nthe shared library the asset lives in when it isn't the project's own (SPEC.md 22). Brua.Shared.DTOs.AssetSummaryDto.LiveUrl is the\nsingle URL of the version in prod."
+      },
+      "AssetVariantDto": {
+        "required": [
+          "type",
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "The file's media type."
+          },
+          "url": {
+            "type": "string",
+            "description": "The file's URL on the edge, immutable."
+          },
+          "prefersColorScheme": {
+            "type": "string",
+            "description": "\"light\" or \"dark\" when the file is for one scheme; left out when it serves both.",
+            "nullable": true
+          },
+          "prefersReducedMotion": {
+            "type": "string",
+            "description": "\"reduce\" on the still of an animation.",
+            "nullable": true
+          },
+          "lang": {
+            "type": "string",
+            "description": "The language the file is for; left out for language-neutral files.",
+            "nullable": true
+          },
+          "scale": {
+            "type": "integer",
+            "description": "The density of a fixed-size file: 1, 2 or 3.",
+            "format": "int32",
+            "nullable": true
+          },
+          "pixelWidth": {
+            "type": "integer",
+            "description": "The width of a flexible file in pixels.",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "One file of a version. Value fields are strings, not closed enums, so new values never break a client (SPEC.md 14)."
+      },
+      "AssetVersionDto": {
+        "required": [
+          "id",
+          "status",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The asset's id."
+          },
+          "version": {
+            "type": "integer",
+            "description": "The version number, from 1.",
+            "format": "int32"
+          },
+          "status": {
+            "type": "string",
+            "description": "\"Draft\" until every required slot is uploaded, \"Processing\", then \"Ready\" or \"Failed\"."
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SlotDto"
+            },
+            "description": "The source files the preset needs and which are uploaded.",
+            "nullable": true
+          },
+          "failureCode": {
+            "type": "string",
+            "description": "Why processing failed, such as \"wrong_proportions\" (SPEC.md 9.2).",
+            "nullable": true
+          },
+          "failureDetail": {
+            "type": "string",
+            "description": "The failure in words.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A version while it is made: its slots, and whether processing has finished (SPEC.md 9)."
+      },
+      "ChangeDto": {
+        "required": [
+          "asset",
+          "conflict",
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "asset": {
+            "type": "string",
+            "description": "The asset's id."
+          },
+          "kind": {
+            "type": "string",
+            "description": "\"set\" (a version goes live) or \"remove\" (the asset leaves the release)."
+          },
+          "fromVersion": {
+            "type": "integer",
+            "description": "The version in prod; left out when the asset isn't released yet.",
+            "format": "int32",
+            "nullable": true
+          },
+          "toVersion": {
+            "type": "integer",
+            "description": "The version the change set carries; left out for a removal.",
+            "format": "int32",
+            "nullable": true
+          },
+          "conflict": {
+            "type": "boolean",
+            "description": "True when prod changed after the change was added; resolve it before merging."
+          },
+          "proportionChange": {
+            "$ref": "#/components/schemas/ProportionChangeDto"
+          },
+          "coverageChange": {
+            "$ref": "#/components/schemas/CoverageChangeDto"
+          }
+        },
+        "additionalProperties": false,
+        "description": "One asset in a change set's diff: from its prod version to the change set's (SPEC.md 21.3).\nBrua.Shared.DTOs.ChangeDto.ProportionChange is set when the new version has another shape than the one in prod, and\nBrua.Shared.DTOs.ChangeDto.CoverageChange when other conditions have their own files (appearances, languages, an animation)."
+      },
+      "ChangeSetDto": {
+        "required": [
+          "changes",
+          "createdAt",
+          "id",
+          "name",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The change set's id."
+          },
+          "name": {
+            "type": "string",
+            "description": "What it is for, such as \"Spring campaign\"."
+          },
+          "status": {
+            "type": "string",
+            "description": "\"open\", \"inreview\", \"approved\" or \"merged\"."
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "When it was opened.",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "string",
+            "description": "Who opened it: an email, or \"key:{name}\" for a system.",
+            "nullable": true
+          },
+          "approvedBy": {
+            "type": "string",
+            "description": "Who approved it.",
+            "nullable": true
+          },
+          "mergeAt": {
+            "type": "string",
+            "description": "When a scheduled merge happens.",
+            "format": "date-time",
+            "nullable": true
+          },
+          "mergedRelease": {
+            "type": "integer",
+            "description": "The release it became.",
+            "format": "int32",
+            "nullable": true
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChangeDto"
+            },
+            "description": "Its diff against prod, one entry per asset."
+          },
+          "readBy": {
+            "type": "integer",
+            "description": "For a library: how many projects a merge reaches. Left out for a project.",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A change set: versions that go live together once reviewed (SPEC.md 21)."
+      },
+      "CoverageChangeDto": {
+        "required": [
+          "fromColorSchemes",
+          "fromLanguages",
+          "fromPreset",
+          "toColorSchemes",
+          "toLanguages",
+          "toPreset"
+        ],
+        "type": "object",
+        "properties": {
+          "fromPreset": {
+            "type": "string",
+            "description": "The preset in prod."
+          },
+          "toPreset": {
+            "type": "string",
+            "description": "The new preset."
+          },
+          "fromColorSchemes": {
+            "type": "string",
+            "description": "The color schemes in prod: \"any\", \"any-dark\" or \"both\"."
+          },
+          "toColorSchemes": {
+            "type": "string",
+            "description": "The new color schemes."
+          },
+          "fromLanguages": {
+            "type": "string",
+            "description": "The languages in prod: \"none\", \"optional\" or \"required\"."
+          },
+          "toLanguages": {
+            "type": "string",
+            "description": "The new languages."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Which conditions have their own files before and after a change, when that differs: a dark-mode user gets the one\ndesign where there was a dark file, every language gets the same image, a still plays where an animation did, or\nthe other way round."
+      },
+      "CreateApiKeyRequest": {
+        "required": [
+          "name",
+          "scopes"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The system the key is for, such as \"gift-service\"; shown wherever the key's actions are."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "\"delivery:read\" (reading assets) and \"assets:write\" (creating assets, uploading, change sets); \"admin\" for keys and settings."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Body of `POST …/api-keys`."
+      },
+      "CreateAssetRequest": {
+        "required": [
+          "decorative",
+          "id",
+          "preset"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The asset's id: lowercase letters, digits and dashes, unique in the organization, and the contract with every consumer."
+          },
+          "preset": {
+            "type": "string",
+            "description": "\"flexible\", \"fixed\" or \"animated\" (SPEC.md 4)."
+          },
+          "alt": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Alt text per project language; required in every language unless the asset is decorative.",
+            "nullable": true
+          },
+          "decorative": {
+            "type": "boolean",
+            "description": "True for an asset that carries no meaning, which screen readers then skip."
+          },
+          "width": {
+            "type": "integer",
+            "description": "The designed width in CSS pixels, for fixed and animated assets.",
+            "format": "int32",
+            "nullable": true
+          },
+          "height": {
+            "type": "integer",
+            "description": "The designed height in CSS pixels, for fixed and animated assets.",
+            "format": "int32",
+            "nullable": true
+          },
+          "colorSchemes": {
+            "type": "string",
+            "description": "\"any\", \"any-dark\" or \"both\".",
+            "nullable": true
+          },
+          "stillFit": {
+            "type": "string",
+            "description": "\"match\" or \"fill\".",
+            "nullable": true
+          },
+          "languages": {
+            "type": "string",
+            "description": "\"none\", \"optional\" or \"required\".",
+            "nullable": true
+          },
+          "scales": {
+            "type": "string",
+            "description": "\"single\" or \"individual\".",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Body of `POST /v1/projects/{project}/assets`. Brua.Shared.DTOs.CreateAssetRequest.StillFit is \"match\" (default: stills must have the\ndesigned proportions) or \"fill\" (stills are scaled and center-cropped to the designed size). Brua.Shared.DTOs.CreateAssetRequest.Languages\nis \"none\" (default), \"optional\" (some languages have their own files, slots `{lang}.{scheme}.{motion}.source`)\nor \"required\" (every project language has its own). Brua.Shared.DTOs.CreateAssetRequest.ColorSchemes is \"any\", \"any-dark\" (a default plus a dark\noverride) or \"both\". Brua.Shared.DTOs.CreateAssetRequest.Scales is \"single\" (default: one still source) or \"individual\" (fixed sizing: a still per\nscale in slots such as `light.still@2x`, @2x and @3x required, @1x made from @2x when left out)."
+      },
+      "CreateChangeSetRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "What the change set is for."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Body of `POST …/change-sets`."
+      },
+      "CreateVersionRequest": {
+        "type": "object",
+        "properties": {
+          "alt": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "New alt text per project language.",
+            "nullable": true
+          },
+          "decorative": {
+            "type": "boolean",
+            "description": "Whether the asset is decorative from this version on.",
+            "nullable": true
+          },
+          "stillFit": {
+            "type": "string",
+            "description": "\"match\" or \"fill\".",
+            "nullable": true
+          },
+          "preset": {
+            "type": "string",
+            "description": "\"flexible\", \"fixed\" or \"animated\", of the asset's sizing.",
+            "nullable": true
+          },
+          "width": {
+            "type": "integer",
+            "description": "The designed width in CSS pixels, for fixed and animated versions.",
+            "format": "int32",
+            "nullable": true
+          },
+          "height": {
+            "type": "integer",
+            "description": "The designed height in CSS pixels, for fixed and animated versions.",
+            "format": "int32",
+            "nullable": true
+          },
+          "colorSchemes": {
+            "type": "string",
+            "description": "\"any\", \"any-dark\" or \"both\".",
+            "nullable": true
+          },
+          "languages": {
+            "type": "string",
+            "description": "\"none\", \"optional\" or \"required\".",
+            "nullable": true
+          },
+          "scales": {
+            "type": "string",
+            "description": "\"single\" or \"individual\".",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Body of `POST …/assets/{id}/versions`. A version decides which conditions have their own files: its preset,\ncolor schemes, languages, scales and designed size can all differ from the version before, both ways (one file where\nthere were eight, or dark and languages added). Only the sizing stays: a flexible asset's versions are flexible, a\nfixed one's fixed or animated. Everything left out, the alt text and Brua.Shared.DTOs.CreateVersionRequest.StillFit included, is copied from\nthe newest version."
+      },
+      "CreatedApiKeyDto": {
+        "required": [
+          "id",
+          "key",
+          "name",
+          "scopes"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The key's id, for revoking it."
+          },
+          "name": {
+            "type": "string",
+            "description": "The system it is for."
+          },
+          "key": {
+            "type": "string",
+            "description": "The key, `brua_{prefix}_{secret}`: send it as `X-Api-Key`. Store it now; it is never shown again."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What it may do."
+          }
+        },
+        "additionalProperties": false,
+        "description": "The full key is returned only here, once."
+      },
+      "ErrorDto": {
+        "required": [
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "A code to act on, such as \"not_found\", \"not_released\", \"validation_failed\" or \"conflicts\"."
+          },
+          "id": {
+            "type": "string",
+            "description": "What the error is about, such as the asset id or the change set.",
+            "nullable": true
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "For \"validation_failed\": the messages per field.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Every error, on every endpoint (SPEC.md 5.2)."
+      },
+      "MergeRequest": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "description": "When to merge; left out, now.",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Body of `POST …/change-sets/{id}/merge`."
+      },
+      "PreviewDto": {
+        "required": [
+          "transparent",
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "colorScheme": {
+            "type": "string",
+            "description": "\"light\" or \"dark\"; left out when the still serves both.",
+            "nullable": true
+          },
+          "url": {
+            "type": "string",
+            "description": "The thumbnail's URL on the edge."
+          },
+          "transparent": {
+            "type": "boolean",
+            "description": "Whether the still has an alpha channel, so it is shown on a checkerboard."
+          },
+          "lang": {
+            "type": "string",
+            "description": "The language the still is for; left out for language-neutral files.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A small still of a version for thumbnails; Brua.Shared.DTOs.PreviewDto.ColorScheme is null when it serves both and\nBrua.Shared.DTOs.PreviewDto.Lang is null for language-neutral files. Brua.Shared.DTOs.PreviewDto.Transparent is set when the still has an alpha channel."
+      },
+      "ProjectDto": {
+        "required": [
+          "allowSelfApproval",
+          "languages",
+          "name",
+          "slug"
+        ],
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "description": "The project's id in URLs."
+          },
+          "name": {
+            "type": "string",
+            "description": "The project's name."
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The project's languages as BCP 47 tags, first one the default; alt text is required in each."
+          },
+          "allowSelfApproval": {
+            "type": "boolean",
+            "description": "Whether authors may approve their own change sets, from the review policy (SPEC.md 6.2)."
+          }
+        },
+        "additionalProperties": false,
+        "description": "A project's settings that clients need, such as the languages alt text is required in."
+      },
+      "ProportionChangeDto": {
+        "required": [
+          "fromHeight",
+          "fromWidth",
+          "toHeight",
+          "toWidth"
+        ],
+        "type": "object",
+        "properties": {
+          "fromWidth": {
+            "type": "integer",
+            "description": "The width in prod.",
+            "format": "int32"
+          },
+          "fromHeight": {
+            "type": "integer",
+            "description": "The height in prod.",
+            "format": "int32"
+          },
+          "toWidth": {
+            "type": "integer",
+            "description": "The new width.",
+            "format": "int32"
+          },
+          "toHeight": {
+            "type": "integer",
+            "description": "The new height.",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false,
+        "description": "The sizes a change moves an asset between, when their proportions differ: what a layout built for the old shape gets."
+      },
+      "ReleaseDto": {
+        "required": [
+          "assetCount",
+          "createdAt",
+          "note",
+          "number"
+        ],
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "integer",
+            "description": "The release number, counting up; the highest is prod.",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "When it went live.",
+            "format": "date-time"
+          },
+          "note": {
+            "type": "string",
+            "description": "What made it, such as the merged change set or a restore."
+          },
+          "changeSetId": {
+            "type": "string",
+            "description": "The change set it merged, if any.",
+            "nullable": true
+          },
+          "assetCount": {
+            "type": "integer",
+            "description": "How many assets it serves.",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false,
+        "description": "One release: what prod served from this number on (SPEC.md 21.4)."
+      },
+      "ResolveConflictRequest": {
+        "required": [
+          "asset",
+          "keep"
+        ],
+        "type": "object",
+        "properties": {
+          "asset": {
+            "type": "string",
+            "description": "The asset in conflict."
+          },
+          "keep": {
+            "type": "string",
+            "description": "\"mine\" or \"prod\"."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Brua.Shared.DTOs.ResolveConflictRequest.Keep is \"mine\" (the change set's version) or \"prod\"."
+      },
+      "SlotDto": {
+        "required": [
+          "name",
+          "required",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The slot, such as `any.still.source`, `dark.still.source` or `nb.light.still.source`."
+          },
+          "status": {
+            "type": "string",
+            "description": "\"empty\" or \"uploaded\"."
+          },
+          "contentType": {
+            "type": "string",
+            "description": "The uploaded file's media type.",
+            "nullable": true
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether processing waits for this slot."
+          }
+        },
+        "additionalProperties": false,
+        "description": "One source file of a version and whether it's uploaded (SPEC.md 9.1); optional slots are per-language extras."
+      },
+      "SourceUploadDto": {
+        "required": [
+          "expiresAt",
+          "method",
+          "uploadUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "uploadUrl": {
+            "type": "string",
+            "description": "PUT the file's bytes here, with its Content-Type; no Brua key is needed."
+          },
+          "method": {
+            "type": "string",
+            "description": "\"PUT\"."
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "When the URL stops working; ask for a new one after that.",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Where to upload a version's source file, with a presigned PUT URL."
+      },
+      "SubmitVersionRequest": {
+        "type": "object",
+        "properties": {
+          "changeSet": {
+            "type": "string",
+            "description": "The open change set to add the version to; left out, a new one is opened for it.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Body of `POST …/versions/{version}/submit`."
+      },
+      "VersionDetailDto": {
+        "required": [
+          "alt",
+          "colorSchemes",
+          "decorative",
+          "languages",
+          "preset",
+          "previews",
+          "scales",
+          "status",
+          "stillFit",
+          "types",
+          "url",
+          "variantCount",
+          "variants",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "description": "The version number.",
+            "format": "int32"
+          },
+          "status": {
+            "type": "string",
+            "description": "\"Draft\", \"Processing\", \"Ready\" or \"Failed\"."
+          },
+          "failureCode": {
+            "type": "string",
+            "description": "Why processing failed, such as \"wrong_proportions\".",
+            "nullable": true
+          },
+          "failureDetail": {
+            "type": "string",
+            "description": "The failure in words.",
+            "nullable": true
+          },
+          "width": {
+            "type": "integer",
+            "description": "The width in CSS pixels, once processed.",
+            "format": "int32",
+            "nullable": true
+          },
+          "height": {
+            "type": "integer",
+            "description": "The height in CSS pixels, once processed.",
+            "format": "int32",
+            "nullable": true
+          },
+          "decorative": {
+            "type": "boolean",
+            "description": "Whether the version is decorative."
+          },
+          "stillFit": {
+            "type": "string",
+            "description": "\"match\" or \"fill\"."
+          },
+          "preset": {
+            "type": "string",
+            "description": "\"flexible\", \"fixed\" or \"animated\"."
+          },
+          "colorSchemes": {
+            "type": "string",
+            "description": "\"any\", \"any-dark\" or \"both\"."
+          },
+          "languages": {
+            "type": "string",
+            "description": "\"none\", \"optional\" or \"required\"."
+          },
+          "scales": {
+            "type": "string",
+            "description": "\"single\" or \"individual\"."
+          },
+          "designWidth": {
+            "type": "integer",
+            "description": "The designed width of a fixed or animated version.",
+            "format": "int32",
+            "nullable": true
+          },
+          "designHeight": {
+            "type": "integer",
+            "description": "The designed height of a fixed or animated version.",
+            "format": "int32",
+            "nullable": true
+          },
+          "alt": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Alt text per language."
+          },
+          "types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The media types the version has files in."
+          },
+          "variantCount": {
+            "type": "integer",
+            "description": "How many files were generated.",
+            "format": "int32"
+          },
+          "previews": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreviewDto"
+            },
+            "description": "Thumbnails per scheme and language."
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssetVariantDto"
+            },
+            "description": "Every generated file with the conditions it is for."
+          },
+          "url": {
+            "type": "string",
+            "description": "The version's single URL."
+          }
+        },
+        "additionalProperties": false,
+        "description": "One version with its alt text, thumbnails and every generated file (Brua.Shared.DTOs.VersionDetailDto.Variants, with delivery URLs).\nBrua.Shared.DTOs.VersionDetailDto.Preset, Brua.Shared.DTOs.VersionDetailDto.ColorSchemes, Brua.Shared.DTOs.VersionDetailDto.Languages, Brua.Shared.DTOs.VersionDetailDto.Scales and the designed\nsize are the version's own: the next version may change them. Brua.Shared.DTOs.VersionDetailDto.Url is the version's single URL, which\nthe edge negotiates (SPEC.md 5.3)."
+      }
+    },
+    "securitySchemes": {
+      "ApiKey": {
+        "type": "apiKey",
+        "description": "A project's API key, brua_{prefix}_{secret}, from an admin.",
+        "name": "X-Api-Key",
+        "in": "header"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Assets",
+      "description": "Creating assets and uploading their sources (SPEC.md 9), and the delivery API: what the current release serves (5.2)."
+    },
+    {
+      "name": "Change sets",
+      "description": "Versions that go live together once a person has reviewed them (SPEC.md 21)."
+    },
+    {
+      "name": "Releases",
+      "description": "What prod has served, release by release, and rolling back (SPEC.md 21.4)."
+    },
+    {
+      "name": "API keys",
+      "description": "Keys for systems: created by an admin, shown once, revoked when a system goes (SPEC.md 13.2)."
+    },
+    {
+      "name": "Projects",
+      "description": "The project a key belongs to: its name and the languages alt text is required in."
+    }
+  ]
+}

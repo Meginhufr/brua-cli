@@ -1,0 +1,28 @@
+name: Release
+
+# A tag vX.Y.Z publishes @meginhufr/brua-cli at that version; the actions in action/ are used by the same tag. npm trusts this
+# workflow through GitHub's OIDC identity (PUBLISHING.md in the main repository), so no token is stored.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm test
+      - run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version
+      - run: npm publish

@@ -1,0 +1,108 @@
+name: Brua push
+description: Push an image or animation to Brua. Creates the asset or its next version, uploads the sources, waits for processing and puts the version in a change set for review.
+branding:
+  icon: image
+  color: blue
+
+inputs:
+  api-key:
+    description: A project API key with the scopes assets:write and, to find change sets by name, delivery:read.
+    required: true
+  project:
+    description: The project's id.
+    required: true
+  file:
+    description: The source file of a flexible asset. Its name is the asset id unless id is given.
+    required: false
+  id:
+    description: The asset's id.
+    required: false
+  slots:
+    description: "For fixed and animated assets, one slot per line: dark.still.source=icons/dark.png"
+    required: false
+  alt:
+    description: "Alt text, one language per line: nb=Rødt ullpledd. Left out, hero.alt.json beside hero.jpg is read."
+    required: false
+  alt-file:
+    description: A JSON file with the alt text per language.
+    required: false
+  preset:
+    description: flexible, fixed or animated. Read when the asset is created.
+    required: false
+    default: flexible
+  width:
+    description: The designed width of a fixed or animated asset.
+    required: false
+  height:
+    description: The designed height of a fixed or animated asset.
+    required: false
+  color-schemes:
+    description: any, any-dark or both.
+    required: false
+  still-fit:
+    description: match or fill.
+    required: false
+  languages:
+    description: none, optional or required.
+    required: false
+  scales:
+    description: single or individual.
+    required: false
+  decorative:
+    description: "true for an asset that carries no meaning."
+    required: false
+    default: "false"
+  change-set:
+    description: The change set to put the version in, by name (opened when there is none) or id. Left out, a new one for this change.
+    required: false
+  wait:
+    description: "true waits for processing and submits; false uploads and stops."
+    required: false
+    default: "true"
+  api-url:
+    description: The API.
+    required: false
+    default: https://api.brua.dev
+
+outputs:
+  version:
+    description: The version number that was pushed.
+    value: ${{ steps.push.outputs.version }}
+  created:
+    description: Whether the asset was created by this push.
+    value: ${{ steps.push.outputs.created }}
+  change-set:
+    description: The id of the change set the version is in.
+    value: ${{ steps.push.outputs.change-set }}
+  change-set-name:
+    description: The name of that change set.
+    value: ${{ steps.push.outputs.change-set-name }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "24"
+    - id: push
+      shell: bash
+      env:
+        BRUA_API_URL: ${{ inputs.api-url }}
+        BRUA_API_KEY: ${{ inputs.api-key }}
+        BRUA_PROJECT: ${{ inputs.project }}
+        BRUA_INPUT_FILE: ${{ inputs.file }}
+        BRUA_INPUT_ID: ${{ inputs.id }}
+        BRUA_INPUT_SLOTS: ${{ inputs.slots }}
+        BRUA_INPUT_ALT: ${{ inputs.alt }}
+        BRUA_INPUT_ALT_FILE: ${{ inputs.alt-file }}
+        BRUA_INPUT_PRESET: ${{ inputs.preset }}
+        BRUA_INPUT_WIDTH: ${{ inputs.width }}
+        BRUA_INPUT_HEIGHT: ${{ inputs.height }}
+        BRUA_INPUT_COLOR_SCHEMES: ${{ inputs.color-schemes }}
+        BRUA_INPUT_STILL_FIT: ${{ inputs.still-fit }}
+        BRUA_INPUT_LANGUAGES: ${{ inputs.languages }}
+        BRUA_INPUT_SCALES: ${{ inputs.scales }}
+        BRUA_INPUT_DECORATIVE: ${{ inputs.decorative }}
+        BRUA_INPUT_CHANGE_SET: ${{ inputs.change-set }}
+        BRUA_INPUT_WAIT: ${{ inputs.wait }}
+      run: node "$GITHUB_ACTION_PATH/run.ts"

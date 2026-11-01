@@ -1,0 +1,6 @@
+{
+  "name": "brua-actions",
+  "private": true,
+  "description": "The GitHub Actions' steps are ES modules, run by Node 24 straight from TypeScript; this is here so Node knows, wherever the directory is checked out.",
+  "type": "module"
+}

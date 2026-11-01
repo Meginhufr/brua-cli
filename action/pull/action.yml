@@ -1,0 +1,61 @@
+name: Brua pull
+description: Write a project's released asset ids as a source file (TypeScript, Swift, Kotlin, C# or JSON), so a missing asset is a compile error; or check that the file is up to date.
+branding:
+  icon: download
+  color: blue
+
+inputs:
+  api-key:
+    description: A project API key with the scope delivery:read.
+    required: true
+  project:
+    description: The project's id.
+    required: true
+  out:
+    description: "The file to write, such as src/brua/assets.ts. Its extension picks the language: .ts, .swift, .kt, .cs or .json."
+    required: true
+  language:
+    description: typescript, swift, kotlin, csharp or json, when the extension doesn't say.
+    required: false
+  namespace:
+    description: The Kotlin package or C# namespace.
+    required: false
+  all:
+    description: "true includes assets that have no released version yet."
+    required: false
+    default: "false"
+  check:
+    description: "true writes nothing and fails the step when the file is out of date."
+    required: false
+    default: "false"
+  api-url:
+    description: The API.
+    required: false
+    default: https://api.brua.dev
+
+outputs:
+  count:
+    description: How many assets the file holds.
+    value: ${{ steps.pull.outputs.count }}
+  changed:
+    description: Whether the file differed from the project, and so was written (or, with check, is out of date).
+    value: ${{ steps.pull.outputs.changed }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "24"
+    - id: pull
+      shell: bash
+      env:
+        BRUA_API_URL: ${{ inputs.api-url }}
+        BRUA_API_KEY: ${{ inputs.api-key }}
+        BRUA_PROJECT: ${{ inputs.project }}
+        BRUA_INPUT_OUT: ${{ inputs.out }}
+        BRUA_INPUT_LANGUAGE: ${{ inputs.language }}
+        BRUA_INPUT_NAMESPACE: ${{ inputs.namespace }}
+        BRUA_INPUT_ALL: ${{ inputs.all }}
+        BRUA_INPUT_CHECK: ${{ inputs.check }}
+      run: node "$GITHUB_ACTION_PATH/run.ts"
