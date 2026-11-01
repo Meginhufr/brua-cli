@@ -24,7 +24,7 @@
   },
   "scripts": {
     "check": "tsc -p .",
-    "test": "tsc -p . && node --test test/",
+    "test": "tsc -p . && node --test \"test/**/*.test.ts\"",
     "generate": "curl -sf ${BRUA_API_URL:-http://localhost:7800}/swagger/v1/swagger.json -o openapi.json && openapi-typescript openapi.json -o src/openapi.d.ts"
   },
   "publishConfig": {
