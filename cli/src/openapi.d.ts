@@ -590,7 +590,7 @@ export interface components {
             status: string;
             /** @description The source files the preset needs and which are uploaded. */
             slots?: components["schemas"]["SlotDto"][] | null;
-            /** @description Why processing failed, such as "wrong_proportions" (SPEC.md 9.2). */
+            /** @description Why processing failed, such as "aspect_mismatch" (SPEC.md 9.2). */
             failureCode?: string | null;
             /** @description The failure in words. */
             failureDetail?: string | null;
@@ -896,7 +896,7 @@ export interface components {
             version: number;
             /** @description "Draft", "Processing", "Ready" or "Failed". */
             status: string;
-            /** @description Why processing failed, such as "wrong_proportions". */
+            /** @description Why processing failed, such as "aspect_mismatch". */
             failureCode?: string | null;
             /** @description The failure in words. */
             failureDetail?: string | null;

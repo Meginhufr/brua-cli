@@ -63,8 +63,8 @@ test("a fixed asset takes slots, and a slot the preset lacks is refused before a
 });
 
 test("failed processing fails the push with the code, and --no-wait stops after the upload", async () => {
-  api.failNext = "wrong_proportions";
-  await assert.rejects(push(client(), { id: "hero", file: join(dir, "hero.jpg"), ...quick }), /Processing version 4 failed: wrong_proportions\. The still has other proportions/);
+  api.failNext = "aspect_mismatch";
+  await assert.rejects(push(client(), { id: "hero", file: join(dir, "hero.jpg"), ...quick }), /Processing version 4 failed: aspect_mismatch\. The still has other proportions/);
 
   const result = await push(client(), { id: "hero", file: join(dir, "hero.jpg"), wait: false, ...quick });
   assert.equal(result.status, "Processing");

@@ -27,7 +27,7 @@ Errors are one line on stderr and a non-zero exit (2 when the key is refused); `
 - **Slots** instead of a file, for fixed and animated assets and per-language files: `--slot any.still.source=icon.png --slot dark.still.source=icon-dark.png` (SPEC.md 9.1). A slot the preset doesn't have is refused before anything is uploaded.
 - **The change set:** `--change-set "Spring campaign"` by name, opened when there is none, or by id; left out, a new change set holds just this change. `--no-wait` uploads and stops; `--no-submit` waits for processing but leaves the version out of change sets.
 
-Processing that fails ends the push with the code, such as `wrong_proportions`.
+Processing that fails ends the push with the code, such as `aspect_mismatch`.
 
 ## pull
 
