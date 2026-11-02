@@ -1,10 +1,11 @@
 name: Release
 
-# A tag vX.Y.Z publishes @meginhufr/brua-cli at that version; the actions in action/ are used by the same tag. npm trusts this
-# workflow through GitHub's OIDC identity (PUBLISHING.md in the main repository), so no token is stored.
+# A tag vX.Y.Z publishes @meginhufr/brua-cli at that version; the actions in action/ are used by the same tag, and by the
+# moving major tag (v1), which is not a release and starts nothing here. npm trusts this workflow through GitHub's OIDC
+# identity (PUBLISHING.md in the main repository), so no token is stored.
 on:
   push:
-    tags: ["v*"]
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
 
 permissions:
   contents: read
