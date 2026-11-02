@@ -12,7 +12,7 @@
   },
   "type": "module",
   "bin": {
-    "brua": "./dist/brua.js"
+    "brua": "dist/brua.js"
   },
   "files": [
     "dist",
