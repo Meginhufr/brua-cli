@@ -1,5 +1,8 @@
 // The command line, parsed: a command, its positional arguments and its flags. Flags are --name value,
-// --name=value, --name alone (true), --no-name (false), and a flag given twice keeps both values.
+// --name=value, --name alone (true), --no-name (false), and a flag given twice keeps both values. The switches
+// never take the next argument as their value, so `--decorative hero.jpg` leaves hero.jpg a positional.
+
+const SWITCHES = new Set(["all", "check", "decorative", "json", "submit", "wait"]);
 
 export interface Parsed {
   command: string | undefined;
@@ -23,7 +26,7 @@ export function parseArgs(argv: string[]): Parsed {
       add(body.slice(0, equals), body.slice(equals + 1));
     } else if (body.startsWith("no-")) {
       add(body.slice(3), "false");
-    } else if (i + 1 < argv.length && !argv[i + 1].startsWith("--")) {
+    } else if (!SWITCHES.has(body) && i + 1 < argv.length && !argv[i + 1].startsWith("--")) {
       add(body, argv[++i]);
     } else {
       add(body, "true");

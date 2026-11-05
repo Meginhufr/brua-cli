@@ -113,7 +113,10 @@ export async function push(api: Api, options: PushOptions): Promise<PushResult> 
   if (options.submit === false) return { id: options.id, version: number, status: version.status, created };
 
   const changeSet = await submitTo(api, options, number);
-  log(`Version ${number} is in change set "${changeSet.name}" (${changeSet.id}), ready for review.`);
+  // A project that goes straight to review sends a version on its own there as it arrives.
+  log(changeSet.status === "submitted"
+    ? `Version ${number} is in change set "${changeSet.name}" (${changeSet.id}), in review.`
+    : `Version ${number} is in change set "${changeSet.name}" (${changeSet.id}), ready for review.`);
   return { id: options.id, version: number, status: version.status, created, changeSet: { id: changeSet.id, name: changeSet.name } };
 }
 

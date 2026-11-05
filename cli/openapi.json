@@ -2182,6 +2182,83 @@
         ]
       }
     },
+    "/v1/preview/{token}/{id}.json": {
+      "get": {
+        "tags": [
+          "Preview"
+        ],
+        "summary": "The asset as prod serves it once the change set merges: its version in the change set, else the one in prod.",
+        "description": "The response is the delivery API's, with the versioned single URL, since the files of a version that isn't\nreleased yet are on the edge already. `preview_not_found` for a token no change set has (a deleted one's), and\n`not_released` for an asset the change set takes out. After the merge it serves prod.",
+        "operationId": "Preview.Get",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "description": "The change set's preview token, from its page in the back office or `previewToken`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The asset's id.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "description": "The language for alt text and files; wins over `Accept-Language`, like the edge's.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "description": "The languages wanted, in order (SPEC.md 5.5).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "Content-Language": {
+                "description": "The language the alt text and files are in.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [ ]
+      }
+    },
     "/v1/projects/{project}": {
       "get": {
         "tags": [
@@ -2805,6 +2882,17 @@
             "description": "For a library: how many projects a merge reaches. Left out for a project.",
             "format": "int32",
             "nullable": true
+          },
+          "previewToken": {
+            "type": "string",
+            "description": "The secret of the change set's preview: a build whose Brua base is `{api}/v1/preview/{previewToken}` sees prod with this change set applied.",
+            "nullable": true
+          },
+          "previewedAt": {
+            "type": "string",
+            "description": "When a build last read an asset through the preview, to the minute.",
+            "format": "date-time",
+            "nullable": true
           }
         },
         "additionalProperties": false,
@@ -3115,7 +3203,8 @@
           "allowSelfApproval",
           "languages",
           "name",
-          "slug"
+          "slug",
+          "straightToReview"
         ],
         "type": "object",
         "properties": {
@@ -3137,6 +3226,10 @@
           "allowSelfApproval": {
             "type": "boolean",
             "description": "Whether authors may approve their own change sets, from the review policy (SPEC.md 6.2)."
+          },
+          "straightToReview": {
+            "type": "boolean",
+            "description": "Whether a version submitted on its own opens a change set already in review, from the review policy."
           }
         },
         "additionalProperties": false,

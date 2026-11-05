@@ -370,6 +370,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/preview/{token}/{id}.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The asset as prod serves it once the change set merges: its version in the change set, else the one in prod.
+         * @description The response is the delivery API's, with the versioned single URL, since the files of a version that isn't
+         *     released yet are on the edge already. `preview_not_found` for a token no change set has (a deleted one's), and
+         *     `not_released` for an asset the change set takes out. After the merge it serves prod.
+         */
+        get: operations["Preview.Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{project}": {
         parameters: {
             query?: never;
@@ -652,6 +674,13 @@ export interface components {
              * @description For a library: how many projects a merge reaches. Left out for a project.
              */
             readBy?: number | null;
+            /** @description The secret of the change set's preview: a build whose Brua base is `{api}/v1/preview/{previewToken}` sees prod with this change set applied. */
+            previewToken?: string | null;
+            /**
+             * Format: date-time
+             * @description When a build last read an asset through the preview, to the minute.
+             */
+            previewedAt?: string | null;
         };
         /** @description Which conditions have their own files before and after a change, when that differs: a dark-mode user gets the one
          *     design where there was a dark file, every language gets the same image, a still plays where an animation did, or
@@ -803,6 +832,8 @@ export interface components {
             languages: string[];
             /** @description Whether authors may approve their own change sets, from the review policy (SPEC.md 6.2). */
             allowSelfApproval: boolean;
+            /** @description Whether a version submitted on its own opens a change set already in review, from the review policy. */
+            straightToReview: boolean;
         };
         /** @description The sizes a change moves an asset between, when their proportions differ: what a layout built for the old shape gets. */
         ProportionChangeDto: {
@@ -2469,6 +2500,48 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDto"];
+                };
+            };
+        };
+    };
+    "Preview.Get": {
+        parameters: {
+            query?: {
+                /** @description The language for alt text and files; wins over `Accept-Language`, like the edge's. */
+                lang?: string;
+            };
+            header?: {
+                /** @description The languages wanted, in order (SPEC.md 5.5). */
+                "Accept-Language"?: string;
+            };
+            path: {
+                /** @description The change set's preview token, from its page in the back office or `previewToken`. */
+                token: string;
+                /** @description The asset's id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    /** @description The language the alt text and files are in. */
+                    "Content-Language"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
