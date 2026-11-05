@@ -534,6 +534,10 @@ export interface components {
             lang?: string | null;
             /** @description Every file of the version for the resolved language, each with the conditions it is for. */
             variants: components["schemas"]["AssetVariantDto"][];
+            /** @description How a layout's box of another shape holds the asset, as CSS `object-fit`: "contain" or "cover". */
+            objectFit: string;
+            /** @description Where it sits in the box, as CSS `object-position`: "50% 35%", the point a cover crop keeps in view. */
+            objectPosition: string;
         };
         /** @description One asset in the back office's list, with its newest version and the version in prod. Brua.Shared.DTOs.AssetSummaryDto.Library names
          *     the shared library the asset lives in when it isn't the project's own (SPEC.md 22). Brua.Shared.DTOs.AssetSummaryDto.LiveUrl is the
@@ -639,6 +643,7 @@ export interface components {
             conflict: boolean;
             proportionChange?: components["schemas"]["ProportionChangeDto"];
             coverageChange?: components["schemas"]["CoverageChangeDto"];
+            fitChange?: components["schemas"]["FitChangeDto"];
         };
         /** @description A change set: versions that go live together once reviewed (SPEC.md 21). */
         ChangeSetDto: {
@@ -741,6 +746,10 @@ export interface components {
             languages?: string | null;
             /** @description "single" or "individual". */
             scales?: string | null;
+            /** @description "contain" or "cover": how a layout's box of another shape holds it; left out, cover for flexible, contain for the rest. */
+            objectFit?: string | null;
+            /** @description Where it sits in its box, such as "50% 35%": a cover crop's focal point; "50% 50%" when left out. */
+            objectPosition?: string | null;
         };
         /** @description Body of `POST …/change-sets`. */
         CreateChangeSetRequest: {
@@ -750,8 +759,9 @@ export interface components {
         /** @description Body of `POST …/assets/{id}/versions`. A version decides which conditions have their own files: its preset,
          *     color schemes, languages, scales and designed size can all differ from the version before, both ways (one file where
          *     there were eight, or dark and languages added). Only the sizing stays: a flexible asset's versions are flexible, a
-         *     fixed one's fixed or animated. Everything left out, the alt text and Brua.Shared.DTOs.CreateVersionRequest.StillFit included, is copied from
-         *     the newest version. */
+         *     fixed one's fixed or animated. Everything left out, the alt text, Brua.Shared.DTOs.CreateVersionRequest.StillFit and the fill included, is
+         *     copied from the newest version. With Brua.Shared.DTOs.CreateVersionRequest.ReuseFiles the version takes the newest version's sources instead
+         *     of an upload, for a change to the alt text or the fill alone, and is processed at once. */
         CreateVersionRequest: {
             /** @description New alt text per project language. */
             alt?: {
@@ -779,6 +789,12 @@ export interface components {
             languages?: string | null;
             /** @description "single" or "individual". */
             scales?: string | null;
+            /** @description "contain" or "cover". */
+            objectFit?: string | null;
+            /** @description Where it sits in its box, such as "50% 35%". */
+            objectPosition?: string | null;
+            /** @description Take the newest version's sources rather than an upload; the shape can't change with it. */
+            reuseFiles?: boolean | null;
         };
         /** @description The full key is returned only here, once. */
         CreatedApiKeyDto: {
@@ -801,6 +817,18 @@ export interface components {
             errors?: {
                 [key: string]: string[];
             } | null;
+        };
+        /** @description How a layout's box holds the asset before and after a change, when that differs: it fills its box where it was shown
+         *     whole, or the other way round, or a cover crop keeps another point in view. */
+        FitChangeDto: {
+            /** @description The fit in prod: "contain" or "cover". */
+            fromObjectFit: string;
+            /** @description The new fit. */
+            toObjectFit: string;
+            /** @description The position in prod, such as "50% 50%". */
+            fromObjectPosition: string;
+            /** @description The new position. */
+            toObjectPosition: string;
         };
         /** @description Body of `POST …/change-sets/{id}/merge`. */
         MergeRequest: {
@@ -980,6 +1008,10 @@ export interface components {
             variants: components["schemas"]["AssetVariantDto"][];
             /** @description The version's single URL. */
             url: string;
+            /** @description "contain" or "cover": how a layout's box of another shape holds the version. */
+            objectFit: string;
+            /** @description Where it sits in its box, such as "50% 35%": a cover crop's focal point. */
+            objectPosition: string;
         };
     };
     responses: never;

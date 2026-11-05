@@ -12,6 +12,8 @@ interface FakeAsset {
   id: string;
   preset: string;
   colorSchemes?: string;
+  objectFit?: string;
+  objectPosition?: string;
   alt: Record<string, string>;
   versions: FakeVersion[];
   live?: number;
@@ -94,7 +96,7 @@ async function handle(api: FakeApi, request: IncomingMessage, response: ServerRe
     if (api.assets.has(body.id)) return error(409, "asset_exists", body.id);
     const missing = ["nb", "en"].filter((lang) => !body.decorative && !body.alt?.[lang]);
     if (missing.length) return send(400, { error: "validation_failed", errors: { alt: [`Alt text is missing for: ${missing.join(", ")}.`] } });
-    const asset: FakeAsset = { id: body.id, preset: body.preset ?? "flexible", colorSchemes: body.colorSchemes, alt: body.alt ?? {}, versions: [] };
+    const asset: FakeAsset = { id: body.id, preset: body.preset ?? "flexible", colorSchemes: body.colorSchemes, objectFit: body.objectFit, objectPosition: body.objectPosition, alt: body.alt ?? {}, versions: [] };
     api.assets.set(body.id, asset);
     return send(201, strip(newVersion(asset)));
   }
@@ -117,7 +119,7 @@ async function handle(api: FakeApi, request: IncomingMessage, response: ServerRe
     if (!asset.live) return error(404, "not_released", id);
     const lang = (request.headers["accept-language"] ?? "nb").split(",")[0].trim();
     const alt = asset.alt[lang] ?? asset.alt.nb;
-    const delivered: AssetResponse = { id, version: asset.live, url: `https://cdn.test/assets/org/${id}/${asset.live}`, width: 400, height: 300, alt, lang: asset.alt[lang] ? lang : "nb", variants: [{ type: "image/png", url: `https://cdn.test/assets/org/${id}/${asset.live}/320.png`, pixelWidth: 320 }] };
+    const delivered: AssetResponse = { id, version: asset.live, url: `https://cdn.test/assets/org/${id}/${asset.live}`, width: 400, height: 300, objectFit: asset.objectFit ?? "cover", objectPosition: asset.objectPosition ?? "50% 50%", alt, lang: asset.alt[lang] ? lang : "nb", variants: [{ type: "image/png", url: `https://cdn.test/assets/org/${id}/${asset.live}/320.png`, pixelWidth: 320 }] };
     return send(200, delivered);
   }
   if (rest === "versions" && method === "GET") {
@@ -132,6 +134,8 @@ async function handle(api: FakeApi, request: IncomingMessage, response: ServerRe
     // A version chooses which files it has; what the body leaves out carries over.
     if (body?.preset) asset.preset = body.preset;
     if (body?.colorSchemes) asset.colorSchemes = body.colorSchemes;
+    if (body?.objectFit) asset.objectFit = body.objectFit;
+    if (body?.objectPosition) asset.objectPosition = body.objectPosition;
     return send(201, strip(newVersion(asset)));
   }
 

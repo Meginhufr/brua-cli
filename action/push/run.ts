@@ -36,6 +36,8 @@ async function main(): Promise<void> {
     height: number("HEIGHT"),
     colorSchemes: input("COLOR_SCHEMES"),
     stillFit: input("STILL_FIT"),
+    objectFit: input("OBJECT_FIT"),
+    objectPosition: input("OBJECT_POSITION"),
     languages: input("LANGUAGES"),
     scales: input("SCALES"),
     decorative: input("DECORATIVE") === "true",

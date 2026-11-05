@@ -24,7 +24,8 @@ Settings, as flags or environment: --api-url (BRUA_API_URL, default https://api.
 push: the asset is created on first push and gets a new version after that. Either way the flags say which files the
 version has (--preset flexible, fixed or animated, within the asset's sizing; --width and --height for fixed and
 animated; --color-schemes any, any-dark or both; --languages none, optional or required; --scales single or individual;
---still-fit match or fill; --decorative), copied from the version before when left out. Alt text comes from --alt, --alt-file, or
+--still-fit match or fill; --decorative; --object-fit contain or cover and --object-position "50% 35%", how a layout's box
+holds it), copied from the version before when left out. Alt text comes from --alt, --alt-file, or
 hero.alt.json beside hero.jpg. The version goes into the change set named by --change-set (opened when there is none),
 or into a new one; --no-wait uploads and stops, --no-submit waits but leaves it out of change sets. --json prints the
 result as JSON.
@@ -65,6 +66,8 @@ async function main(argv: string[]): Promise<void> {
         stillFit: flag(parsed, "still-fit"),
         languages: flag(parsed, "languages"),
         scales: flag(parsed, "scales"),
+        objectFit: flag(parsed, "object-fit"),
+        objectPosition: flag(parsed, "object-position"),
         changeSet: flag(parsed, "change-set"),
         wait: boolFlag(parsed, "wait", true),
         submit: boolFlag(parsed, "submit", true),

@@ -42,6 +42,12 @@ inputs:
   still-fit:
     description: match or fill.
     required: false
+  object-fit:
+    description: How a layout's box holds the version, contain or cover; left out, the version before's (cover for a new flexible asset).
+    required: false
+  object-position:
+    description: Where it sits in its box, such as "50% 35%", the point a cover crop keeps in view.
+    required: false
   languages:
     description: none, optional or required.
     required: false
@@ -100,6 +106,8 @@ runs:
         BRUA_INPUT_HEIGHT: ${{ inputs.height }}
         BRUA_INPUT_COLOR_SCHEMES: ${{ inputs.color-schemes }}
         BRUA_INPUT_STILL_FIT: ${{ inputs.still-fit }}
+        BRUA_INPUT_OBJECT_FIT: ${{ inputs.object-fit }}
+        BRUA_INPUT_OBJECT_POSITION: ${{ inputs.object-position }}
         BRUA_INPUT_LANGUAGES: ${{ inputs.languages }}
         BRUA_INPUT_SCALES: ${{ inputs.scales }}
         BRUA_INPUT_DECORATIVE: ${{ inputs.decorative }}

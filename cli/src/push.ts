@@ -22,6 +22,10 @@ export interface PushOptions {
   stillFit?: string;
   languages?: string;
   scales?: string;
+  /** How a layout's box holds the version: "contain" or "cover". Left out, cover for a new flexible asset, contain for the rest, then the version before's. */
+  objectFit?: string;
+  /** Where it sits in its box, such as "50% 35%": a cover crop's focal point. */
+  objectPosition?: string;
   /** The change set to put the version in: a name (opened when there is none) or an id. Left out, a new one for this change. */
   changeSet?: string;
   /** False uploads and stops: no waiting for processing, no change set. */
@@ -73,6 +77,8 @@ export async function push(api: Api, options: PushOptions): Promise<PushResult> 
       colorSchemes: options.colorSchemes,
       languages: options.languages,
       scales: options.scales,
+      objectFit: options.objectFit,
+      objectPosition: options.objectPosition,
     });
   } catch (error) {
     if (!(error instanceof BruaError) || error.status !== 404) throw error;
@@ -87,6 +93,8 @@ export async function push(api: Api, options: PushOptions): Promise<PushResult> 
       stillFit: options.stillFit,
       languages: options.languages,
       scales: options.scales,
+      objectFit: options.objectFit,
+      objectPosition: options.objectPosition,
     });
     created = true;
   }

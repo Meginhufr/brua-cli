@@ -2564,6 +2564,8 @@
           "alt",
           "height",
           "id",
+          "objectFit",
+          "objectPosition",
           "url",
           "variants",
           "version",
@@ -2609,6 +2611,14 @@
               "$ref": "#/components/schemas/AssetVariantDto"
             },
             "description": "Every file of the version for the resolved language, each with the conditions it is for."
+          },
+          "objectFit": {
+            "type": "string",
+            "description": "How a layout's box of another shape holds the asset, as CSS `object-fit`: \"contain\" or \"cover\"."
+          },
+          "objectPosition": {
+            "type": "string",
+            "description": "Where it sits in the box, as CSS `object-position`: \"50% 35%\", the point a cover crop keeps in view."
           }
         },
         "additionalProperties": false,
@@ -2816,6 +2826,9 @@
           },
           "coverageChange": {
             "$ref": "#/components/schemas/CoverageChangeDto"
+          },
+          "fitChange": {
+            "$ref": "#/components/schemas/FitChangeDto"
           }
         },
         "additionalProperties": false,
@@ -3018,6 +3031,16 @@
             "type": "string",
             "description": "\"single\" or \"individual\".",
             "nullable": true
+          },
+          "objectFit": {
+            "type": "string",
+            "description": "\"contain\" or \"cover\": how a layout's box of another shape holds it; left out, cover for flexible, contain for the rest.",
+            "nullable": true
+          },
+          "objectPosition": {
+            "type": "string",
+            "description": "Where it sits in its box, such as \"50% 35%\": a cover crop's focal point; \"50% 50%\" when left out.",
+            "nullable": true
           }
         },
         "additionalProperties": false,
@@ -3089,10 +3112,25 @@
             "type": "string",
             "description": "\"single\" or \"individual\".",
             "nullable": true
+          },
+          "objectFit": {
+            "type": "string",
+            "description": "\"contain\" or \"cover\".",
+            "nullable": true
+          },
+          "objectPosition": {
+            "type": "string",
+            "description": "Where it sits in its box, such as \"50% 35%\".",
+            "nullable": true
+          },
+          "reuseFiles": {
+            "type": "boolean",
+            "description": "Take the newest version's sources rather than an upload; the shape can't change with it.",
+            "nullable": true
           }
         },
         "additionalProperties": false,
-        "description": "Body of `POST …/assets/{id}/versions`. A version decides which conditions have their own files: its preset,\ncolor schemes, languages, scales and designed size can all differ from the version before, both ways (one file where\nthere were eight, or dark and languages added). Only the sizing stays: a flexible asset's versions are flexible, a\nfixed one's fixed or animated. Everything left out, the alt text and Brua.Shared.DTOs.CreateVersionRequest.StillFit included, is copied from\nthe newest version."
+        "description": "Body of `POST …/assets/{id}/versions`. A version decides which conditions have their own files: its preset,\ncolor schemes, languages, scales and designed size can all differ from the version before, both ways (one file where\nthere were eight, or dark and languages added). Only the sizing stays: a flexible asset's versions are flexible, a\nfixed one's fixed or animated. Everything left out, the alt text, Brua.Shared.DTOs.CreateVersionRequest.StillFit and the fill included, is\ncopied from the newest version. With Brua.Shared.DTOs.CreateVersionRequest.ReuseFiles the version takes the newest version's sources instead\nof an upload, for a change to the alt text or the fill alone, and is processed at once."
       },
       "CreatedApiKeyDto": {
         "required": [
@@ -3155,6 +3193,35 @@
         },
         "additionalProperties": false,
         "description": "Every error, on every endpoint (SPEC.md 5.2)."
+      },
+      "FitChangeDto": {
+        "required": [
+          "fromObjectFit",
+          "fromObjectPosition",
+          "toObjectFit",
+          "toObjectPosition"
+        ],
+        "type": "object",
+        "properties": {
+          "fromObjectFit": {
+            "type": "string",
+            "description": "The fit in prod: \"contain\" or \"cover\"."
+          },
+          "toObjectFit": {
+            "type": "string",
+            "description": "The new fit."
+          },
+          "fromObjectPosition": {
+            "type": "string",
+            "description": "The position in prod, such as \"50% 50%\"."
+          },
+          "toObjectPosition": {
+            "type": "string",
+            "description": "The new position."
+          }
+        },
+        "additionalProperties": false,
+        "description": "How a layout's box holds the asset before and after a change, when that differs: it fills its box where it was shown\nwhole, or the other way round, or a cover crop keeps another point in view."
       },
       "MergeRequest": {
         "type": "object",
@@ -3396,6 +3463,8 @@
           "colorSchemes",
           "decorative",
           "languages",
+          "objectFit",
+          "objectPosition",
           "preset",
           "previews",
           "scales",
@@ -3512,6 +3581,14 @@
           "url": {
             "type": "string",
             "description": "The version's single URL."
+          },
+          "objectFit": {
+            "type": "string",
+            "description": "\"contain\" or \"cover\": how a layout's box of another shape holds the version."
+          },
+          "objectPosition": {
+            "type": "string",
+            "description": "Where it sits in its box, such as \"50% 35%\": a cover crop's focal point."
           }
         },
         "additionalProperties": false,

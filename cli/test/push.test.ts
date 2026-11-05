@@ -86,3 +86,11 @@ test("a missing file and a missing alt text are said before the API is asked", a
   await assert.rejects(push(client(), { id: "x" }), /Nothing to upload/);
   await assert.rejects(push(client(), { id: "no-alt", file: join(dir, "icon.png"), ...quick }), /validation_failed: alt: Alt text is missing for: nb, en\./);
 });
+
+test("the fill goes with the first push and with a new version", async () => {
+  await push(client(), { id: "fill-card", file: join(dir, "hero.jpg"), alt: { nb: "Kort", en: "Card" }, objectFit: "cover", objectPosition: "50% 35%", ...quick });
+  assert.deepEqual([api.assets.get("fill-card")?.objectFit, api.assets.get("fill-card")?.objectPosition], ["cover", "50% 35%"]);
+
+  await push(client(), { id: "fill-card", file: join(dir, "hero.jpg"), objectPosition: "20% 35%", ...quick });
+  assert.equal(api.assets.get("fill-card")?.objectPosition, "20% 35%");
+});
